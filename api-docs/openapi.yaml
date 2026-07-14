@@ -1,0 +1,414 @@
+openapi: 3.0.3
+info:
+  title: CivicLens AI API
+  description: >
+    REST API for the CivicLens AI civic-reporting platform — auth, progressive
+    profiling, issue reporting, admin review, duplicate-flag resolution, and
+    the trusted local-news feed. See /docs/API.md in the repo root for narrative
+    walkthroughs of each flow.
+  version: "1.0.0"
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Issues
+  - name: Admin
+  - name: News
+
+paths:
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Exchange a Google Sign-In idToken for a session JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken: { type: string }
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+                  isNewUser: { type: boolean }
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get the current user's profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+
+  /users/me/profile:
+    patch:
+      tags: [Users]
+      summary: Progressive profiling — complete the profile after Google Sign-In
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 30 }
+                occupation: { type: string }
+                city: { type: string }
+                district: { type: string }
+                photoUrl: { type: string, format: uri }
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+
+  /issues/upload:
+    post:
+      tags: [Issues]
+      summary: Upload a photo, returns a URL to reference in POST /issues
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image: { type: string, format: binary }
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imageUrl: { type: string }
+
+  /issues:
+    get:
+      tags: [Issues]
+      summary: Browse approved/resolved issues
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: lat
+          schema: { type: number }
+        - in: query
+          name: lng
+          schema: { type: number }
+        - in: query
+          name: radiusKm
+          schema: { type: number, default: 5 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issues:
+                    type: array
+                    items: { $ref: '#/components/schemas/Issue' }
+    post:
+      tags: [Issues]
+      summary: Submit a new report — runs authenticity check, duplicate detection, and AI summarization
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIssueInput' }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issue: { $ref: '#/components/schemas/Issue' }
+                  potentialDuplicates:
+                    type: array
+                    items: { $ref: '#/components/schemas/DuplicateMatch' }
+                  imageAuthenticity: { $ref: '#/components/schemas/AuthenticityResult' }
+
+  /issues/preview-analysis:
+    post:
+      tags: [Issues]
+      summary: Run the AI summary + authenticity check without persisting an issue
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imageUrl, title, description]
+              properties:
+                imageUrl: { type: string }
+                title: { type: string }
+                description: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary: { type: string }
+                  suggestion: { type: string }
+                  imageAuthenticity: { $ref: '#/components/schemas/AuthenticityResult' }
+
+  /issues/{id}:
+    get:
+      tags: [Issues]
+      summary: Get full issue detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issue: { $ref: '#/components/schemas/Issue' }
+                  images:
+                    type: array
+                    items: { type: object, properties: { url: { type: string } } }
+        "404":
+          description: Not found
+
+  /admin/queue:
+    get:
+      tags: [Admin]
+      summary: Pending issues + open duplicate flags
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pendingIssues:
+                    type: array
+                    items: { $ref: '#/components/schemas/Issue' }
+                  duplicateFlags:
+                    type: array
+                    items: { $ref: '#/components/schemas/DuplicateFlag' }
+
+  /admin/issues/{id}/approve:
+    post:
+      tags: [Admin]
+      summary: Publish an issue to the public feed
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { notes: { type: string } }
+      responses:
+        "200": { description: OK }
+
+  /admin/issues/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Decline a report
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { notes: { type: string } }
+      responses:
+        "200": { description: OK }
+
+  /admin/duplicates/{flagId}/resolve:
+    post:
+      tags: [Admin]
+      summary: Resolve a duplicate flag — never automatic elsewhere in the system
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: flagId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution]
+              properties:
+                resolution:
+                  type: string
+                  enum: [confirmed_merge, rejected_as_duplicate, marked_related]
+                notes: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /news:
+    get:
+      tags: [News]
+      summary: Trusted-source local headlines, cached by locale/category
+      parameters:
+        - in: query
+          name: locale
+          required: true
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string, default: local }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  articles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title: { type: string }
+                        url: { type: string }
+                        source: { type: string }
+                        published_at: { type: string, format: date-time }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        username: { type: string, nullable: true }
+        occupation: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        district: { type: string, nullable: true }
+        photo_url: { type: string, nullable: true }
+        role: { type: string, enum: [citizen, admin, moderator] }
+        profile_completed: { type: boolean }
+
+    CreateIssueInput:
+      type: object
+      required: [categorySlug, title, description, lat, lng, imageUrl]
+      properties:
+        categorySlug: { type: string, example: pothole }
+        title: { type: string }
+        description: { type: string }
+        solutionIdea: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        addressHint: { type: string }
+        imageUrl: { type: string }
+
+    Issue:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        status:
+          type: string
+          enum: [pending_review, approved, rejected, potential_duplicate, resolved]
+        category: { type: string }
+        category_label: { type: string }
+        ai_summary: { type: string, nullable: true }
+        ai_suggestion: { type: string, nullable: true }
+        lat: { type: number }
+        lng: { type: number }
+        created_at: { type: string, format: date-time }
+
+    DuplicateMatch:
+      type: object
+      properties:
+        matchedIssueId: { type: string, format: uuid }
+        score: { type: number }
+        spatialMatch: { type: boolean }
+        temporalMatch: { type: boolean }
+        semanticMatch: { type: boolean }
+
+    DuplicateFlag:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        issue_id: { type: string, format: uuid }
+        matched_issue_id: { type: string, format: uuid }
+        similarity_score: { type: number }
+        status:
+          type: string
+          enum: [pending_review, confirmed_merge, rejected_as_duplicate, marked_related]
+
+    AuthenticityResult:
+      type: object
+      properties:
+        isAiGenerated: { type: boolean, nullable: true }
+        confidence: { type: number }
+        signals:
+          type: array
+          items: { type: string }

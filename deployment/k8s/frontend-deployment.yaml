@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: civiclens-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: civiclens-frontend }
+  template:
+    metadata:
+      labels: { app: civiclens-frontend }
+    spec:
+      containers:
+        - name: frontend
+          image: your-registry/civiclens-frontend:latest
+          ports: [{ containerPort: 3000 }]
+          envFrom:
+            - secretRef: { name: civiclens-frontend-secrets }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: civiclens-frontend
+spec:
+  type: LoadBalancer
+  selector: { app: civiclens-frontend }
+  ports: [{ port: 80, targetPort: 3000 }]

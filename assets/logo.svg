@@ -1,0 +1,7 @@
+<svg width="640" height="160" viewBox="0 0 640 160" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(20 20) rotate(-8 40 60)">
+    <rect x="0" y="30" width="80" height="60" rx="6" fill="none" stroke="#E8A33D" stroke-width="6"/>
+  </g>
+  <circle cx="60" cy="80" r="9" fill="#E8A33D"/>
+  <text x="130" y="100" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="56" fill="#10233F">CivicLens</text>
+</svg>

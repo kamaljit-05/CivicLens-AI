@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: civiclens-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: civiclens-backend }
+  template:
+    metadata:
+      labels: { app: civiclens-backend }
+    spec:
+      containers:
+        - name: backend
+          image: your-registry/civiclens-backend:latest
+          ports: [{ containerPort: 4000 }]
+          envFrom:
+            - secretRef: { name: civiclens-backend-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 4000 }
+            initialDelaySeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: civiclens-backend
+spec:
+  selector: { app: civiclens-backend }
+  ports: [{ port: 4000, targetPort: 4000 }]

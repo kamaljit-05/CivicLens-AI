@@ -1,0 +1,20 @@
+{
+  "color": {
+    "ink":       { "value": "#10233F", "usage": "Primary dark surface, headers, hero backgrounds" },
+    "blueprint": { "value": "#2C5FA8", "usage": "Primary interactive accent (links, buttons, focus)" },
+    "signal":    { "value": "#E8A33D", "usage": "Secondary accent — pending status, highlights" },
+    "concrete":  { "value": "#6B7280", "usage": "Secondary text, borders" },
+    "paper":     { "value": "#F8F6F1", "usage": "Warm off-white page background" },
+    "approved":  { "value": "#2F7D5C", "usage": "Approved / resolved status" },
+    "rejected":  { "value": "#C1432E", "usage": "Rejected / urgent status — use sparingly" }
+  },
+  "font": {
+    "display": { "family": "Archivo", "weight": [600, 700, 800], "usage": "Headlines, section titles" },
+    "body":    { "family": "Inter", "usage": "Body copy, UI text" },
+    "mono":    { "family": "IBM Plex Mono", "usage": "Report IDs, timestamps, category tags, data" }
+  },
+  "motif": {
+    "name": "status stamp",
+    "description": "A rotated, outlined badge (see components/StatusStamp.tsx) that carries an issue's real review status — PENDING REVIEW, APPROVED, REJECTED, POSSIBLE DUPLICATE, RESOLVED. Reused across the app, the marketing deck, and the logo mark itself."
+  }
+}
