@@ -1,4 +1,4 @@
 [build]
   base = "frontend"
-  command = "npm install && npm run build && npm run export"
-  publish = "out"
+  command = "npm install && npm run build"
+  publish = ".next"
