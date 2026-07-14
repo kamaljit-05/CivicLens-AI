@@ -7,9 +7,11 @@ services:
     dockerContext: ./ai-service
     envVars:
       - key: OPENAI_API_KEY
-        sync: false # paste your key in the Render dashboard after deploy
+        sync: false # paste your OpenAI key here — OR your Gemini API key if using OPENAI_BASE_URL below
+      - key: OPENAI_BASE_URL
+        sync: false # leave blank for real OpenAI. For Gemini, set to: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: VISION_MODEL
-        value: gpt-4o
+        value: gpt-4o # if using Gemini via OPENAI_BASE_URL, set this to e.g. gemini-2.5-flash instead
       - key: SUMMARY_MIN_WORDS
         value: "100"
       - key: SUMMARY_MAX_WORDS

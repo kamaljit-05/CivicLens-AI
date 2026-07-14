@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import Link from 'next/link';
+import { Camera, ChevronLeft, ChevronRight, Check, LogIn } from 'lucide-react';
 import { api } from '@/lib/api';
 import AIAssistantPanel from './AIAssistantPanel';
 
@@ -23,6 +24,7 @@ const STEPS = ['Category', 'Details', 'Photo', 'Preview'];
 
 export default function ReportForm() {
   const router = useRouter();
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -35,6 +37,10 @@ export default function ReportForm() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSignedIn(!!window.localStorage.getItem('civiclens_token'));
+  }, []);
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -80,6 +86,27 @@ export default function ReportForm() {
     (step === 1 && title.trim().length >= 3 && description.trim().length >= 10) ||
     (step === 2 && imageFile) ||
     step === 3;
+
+  if (signedIn === false) {
+    return (
+      <div className="max-w-md mx-auto text-center rounded-card border border-ink/10 bg-white p-8">
+        <h2 className="font-display text-lg font-semibold text-ink mb-2">Sign in to report an issue</h2>
+        <p className="text-sm text-concrete mb-6">
+          We tie each report to your account so you can track its status and so the photo can be verified.
+        </p>
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-1.5 rounded-md bg-blueprint text-white text-sm font-medium px-5 py-2.5 hover:bg-ink transition-colors"
+        >
+          <LogIn size={16} /> Sign in with Google
+        </Link>
+      </div>
+    );
+  }
+
+  if (signedIn === null) {
+    return <div className="max-w-2xl mx-auto text-center text-sm text-concrete py-12">Loading…</div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto">

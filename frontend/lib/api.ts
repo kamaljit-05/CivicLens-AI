@@ -67,7 +67,10 @@ export const api = {
       headers: authHeaders(),
       body: form,
     });
-    if (!res.ok) throw new Error('Image upload failed');
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Image upload failed: ${res.status}`);
+    }
     return res.json();
   },
 

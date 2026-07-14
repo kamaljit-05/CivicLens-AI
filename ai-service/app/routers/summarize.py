@@ -5,7 +5,7 @@ from app.models.schemas import SummarizeRequest, SummarizeResponse
 
 router = APIRouter()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL") or None)
 VISION_MODEL = os.getenv("VISION_MODEL", "gpt-4o")
 MIN_WORDS = os.getenv("SUMMARY_MIN_WORDS", "100")
 MAX_WORDS = os.getenv("SUMMARY_MAX_WORDS", "150")

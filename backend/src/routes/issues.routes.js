@@ -21,7 +21,10 @@ const upload = multer({
 router.post('/upload', requireAuth, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No image provided' });
   // In production this would be the CDN/object-storage URL, not a local path.
-  res.status(201).json({ imageUrl: `/uploads/${req.file.filename}` });
+  // Must be an absolute URL: issues.controller.js validates it with zod's
+  // .url(), and the AI service needs to be able to fetch it directly.
+  const base = process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`;
+  res.status(201).json({ imageUrl: `${base}/uploads/${req.file.filename}` });
 });
 
 router.get('/', listIssues);
