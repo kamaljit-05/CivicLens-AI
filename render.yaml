@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: civiclens-ai-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./ai-service/Dockerfile
+    dockerContext: ./ai-service
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false # paste your key in the Render dashboard after deploy
+      - key: VISION_MODEL
+        value: gpt-4o
+      - key: SUMMARY_MIN_WORDS
+        value: "100"
+      - key: SUMMARY_MAX_WORDS
+        value: "150"
+      - key: ENABLE_C2PA_CHECK
+        value: "true"
+      - key: ENABLE_SYNTHID_CHECK
+        value: "true"
+
+  - type: web
+    name: civiclens-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # paste your Neon connection string
+      - key: FRONTEND_ORIGIN
+        sync: false # paste your Vercel URL, e.g. https://civiclens.vercel.app
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: AI_SERVICE_URL
+        sync: false # paste the civiclens-ai-service URL Render gives you
+      - key: NEWS_API_KEY
+        sync: false
+      - key: NEWS_TRUSTED_DOMAINS
+        value: thehindu.com,timesofindia.indiatimes.com,indianexpress.com
+      - key: DUPLICATE_POINT_RADIUS_M
+        value: "100"
+      - key: DUPLICATE_LINEAR_RADIUS_M
+        value: "500"
+      - key: DUPLICATE_RESOLVED_WINDOW_DAYS
+        value: "60"
+      - key: DUPLICATE_SIMILARITY_THRESHOLD
+        value: "0.7"
+      - key: UPLOADS_DIR
+        value: ./uploads
