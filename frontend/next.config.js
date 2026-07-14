@@ -1,16 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "export",
+
   images: {
     remotePatterns: [
-      { protocol: 'http', hostname: 'localhost' },
-      { protocol: 'https', hostname: '**' }, // tighten to your CDN/storage domain in production
+      { protocol: "http", hostname: "localhost" },
+      { protocol: "https", hostname: "**" },
     ],
   },
+
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/:path*`,
+        source: "/api/:path*",
+        destination:
+          process.env.NEXT_PUBLIC_API_URL ||
+          "http://localhost:4000/api/:path*",
       },
     ];
   },
