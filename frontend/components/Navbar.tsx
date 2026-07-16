@@ -1,24 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MapPin, PlusCircle, LayoutDashboard, LogIn, LogOut } from 'lucide-react';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 
 export default function Navbar() {
   const router = useRouter();
-  // Starts null on both server and client's first render so hydration
-  // matches; the real value is filled in after mount (localStorage only
-  // exists in the browser).
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setSignedIn(!!window.localStorage.getItem('civiclens_token'));
-  }, []);
+  const { status, user } = useCurrentUser();
 
   function handleLogout() {
     window.localStorage.removeItem('civiclens_token');
-    setSignedIn(false);
     router.push('/');
     router.refresh();
   }
@@ -40,11 +32,19 @@ export default function Navbar() {
           >
             <PlusCircle size={16} /> Report an issue
           </Link>
-          <Link href="/admin" className="flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-ink/5 text-ink/60">
-            <LayoutDashboard size={16} /> Admin
-          </Link>
 
-          {signedIn === null ? null : signedIn ? (
+          {/* The Admin link only ever renders for a confirmed admin (GET
+              /api/users/me -> isAdmin, itself derived from the backend's
+              live ADMIN_EMAILS allow-list). This is a visibility nicety,
+              not the security boundary -- /admin and every /api/admin/*
+              route re-check independently and reject anyone else. */}
+          {status === 'ready' && user?.isAdmin && (
+            <Link href="/admin" className="flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-ink/5 text-ink/60">
+              <LayoutDashboard size={16} /> Admin
+            </Link>
+          )}
+
+          {status === 'loading' ? null : status === 'ready' ? (
             <button
               type="button"
               onClick={handleLogout}

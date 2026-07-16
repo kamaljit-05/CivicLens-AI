@@ -11,6 +11,8 @@ export type Issue = {
   category_label?: string;
   thumbnail_url?: string;
   created_at: string;
+  lat?: number;
+  lng?: number;
 };
 
 export default function IssueCard({ issue }: { issue: Issue }) {

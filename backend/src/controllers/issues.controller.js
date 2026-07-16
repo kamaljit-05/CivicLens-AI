@@ -22,6 +22,13 @@ const createIssueSchema = z.object({
  */
 async function createIssue(req, res, next) {
   try {
+    const { rows: reporterRows } = await db.query('SELECT is_suspended FROM users WHERE id = $1', [
+      req.user.id,
+    ]);
+    if (reporterRows[0]?.is_suspended) {
+      return res.status(403).json({ error: 'Your account has been suspended by an administrator' });
+    }
+
     const input = createIssueSchema.parse(req.body);
 
     const { rows: categoryRows } = await db.query(

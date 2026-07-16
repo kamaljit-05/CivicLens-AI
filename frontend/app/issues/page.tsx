@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
-import IssueCard, { Issue } from '@/components/IssueCard';
+import { Issue } from '@/components/IssueCard';
+import IssuesBrowser from '@/components/IssuesBrowser';
 
 const CATEGORIES = [
   { slug: '', label: 'All' },
@@ -46,15 +47,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: { cat
         </div>
       </div>
 
-      {issues.length > 0 ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {issues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-concrete text-sm font-mono">No approved reports match this filter yet.</p>
-      )}
+      <IssuesBrowser issues={issues} />
     </div>
   );
 }

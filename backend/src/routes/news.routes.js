@@ -1,21 +1,32 @@
 const express = require('express');
-const { getCachedNews, refreshLocalNews } = require('../services/news.service');
+const { getCachedNews, refreshNews, VALID_SCOPES } = require('../services/news.service');
 
 const router = express.Router();
 
-/** GET /api/news?locale=Bhubaneswar&category=local */
+/**
+ * GET /api/news?scope=city&locale=Bhubaneswar
+ * scope: 'area' | 'city' | 'state' | 'country' | 'world' (default 'city')
+ * locale: required for every scope except 'world'
+ */
 router.get('/', async (req, res, next) => {
   try {
-    const { locale, category = 'local' } = req.query;
-    if (!locale) return res.status(400).json({ error: 'locale query param is required' });
+    const { locale, scope = 'city' } = req.query;
 
-    let articles = await getCachedNews({ locale, category });
-    if (articles.length === 0) {
-      // Cold cache — fetch synchronously once so the first visitor isn't stuck empty.
-      await refreshLocalNews({ locale, category });
-      articles = await getCachedNews({ locale, category });
+    if (!VALID_SCOPES.includes(scope)) {
+      return res.status(400).json({ error: `scope must be one of: ${VALID_SCOPES.join(', ')}` });
     }
-    res.json({ articles });
+    if (scope !== 'world' && !locale) {
+      return res.status(400).json({ error: 'locale query param is required for this scope' });
+    }
+
+    let articles = await getCachedNews({ locale, scope });
+    if (articles.length === 0) {
+      // Cold cache -- fetch synchronously once so the first visitor for this
+      // place/scope combination isn't stuck looking at an empty tab.
+      await refreshNews({ locale, scope });
+      articles = await getCachedNews({ locale, scope });
+    }
+    res.json({ articles, scope, locale: locale || 'world' });
   } catch (err) {
     next(err);
   }

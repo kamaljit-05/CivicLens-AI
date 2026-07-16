@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const db = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { isAdminEmail } = require('../config/adminEmails');
 
 const router = express.Router();
 
@@ -42,12 +43,14 @@ router.patch('/me/profile', requireAuth, async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, name, email, username, occupation, city, district, photo_url, role, profile_completed
+      `SELECT id, name, email, username, occupation, city, district, photo_url,
+              role, profile_completed, is_suspended
        FROM users WHERE id = $1`,
       [req.user.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json({ user: rows[0] });
+    const user = rows[0];
+    res.json({ user: { ...user, isAdmin: isAdminEmail(user.email) } });
   } catch (err) {
     next(err);
   }

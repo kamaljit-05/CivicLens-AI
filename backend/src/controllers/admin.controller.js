@@ -119,4 +119,96 @@ async function resolveDuplicateFlag(req, res, next) {
   }
 }
 
-module.exports = { getQueue, approveIssue, rejectIssue, resolveDuplicateFlag };
+/**
+ * GET /api/admin/users — every registered user plus how many reports
+ * they've submitted, for the admin's User Management panel. Never exposes
+ * google_id.
+ */
+async function listUsers(req, res, next) {
+  try {
+    const { rows } = await db.query(
+      `SELECT u.id, u.name, u.email, u.username, u.occupation, u.photo_url,
+              u.city, u.district, u.role, u.is_suspended, u.profile_completed,
+              u.created_at,
+              COUNT(i.id) AS reports_submitted
+       FROM users u
+       LEFT JOIN issues i ON i.user_id = u.id
+       GROUP BY u.id
+       ORDER BY u.created_at DESC`
+    );
+    res.json({ users: rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/admin/users/:id/suspend — blocks the user from submitting new reports. */
+async function suspendUser(req, res, next) {
+  try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ error: "You can't suspend your own account" });
+    }
+    const { rows } = await db.query(
+      `UPDATE users SET is_suspended = true, updated_at = now() WHERE id = $1 RETURNING id, email, is_suspended`,
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    await db.query(
+      `INSERT INTO admin_actions (admin_id, issue_id, action, notes) VALUES ($1, NULL, 'suspend_user', $2)`,
+      [req.user.id, rows[0].email]
+    );
+    res.json({ user: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/admin/users/:id/unsuspend */
+async function unsuspendUser(req, res, next) {
+  try {
+    const { rows } = await db.query(
+      `UPDATE users SET is_suspended = false, updated_at = now() WHERE id = $1 RETURNING id, email, is_suspended`,
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    await db.query(
+      `INSERT INTO admin_actions (admin_id, issue_id, action, notes) VALUES ($1, NULL, 'unsuspend_user', $2)`,
+      [req.user.id, rows[0].email]
+    );
+    res.json({ user: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /api/admin/stats — headline numbers for the dashboard's summary cards. */
+async function getStats(req, res, next) {
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM users WHERE created_at >= date_trunc('day', now())) AS today_users,
+        (SELECT COUNT(*) FROM issues) AS total_reports,
+        (SELECT COUNT(*) FROM issues WHERE status IN ('pending_review','potential_duplicate')) AS pending_reports,
+        (SELECT COUNT(*) FROM issues WHERE status = 'approved') AS approved_reports,
+        (SELECT COUNT(*) FROM issues WHERE status = 'rejected') AS rejected_reports,
+        (SELECT COUNT(*) FROM issues WHERE status = 'resolved') AS resolved_reports
+    `);
+    res.json({ stats: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  getQueue,
+  approveIssue,
+  rejectIssue,
+  resolveDuplicateFlag,
+  listUsers,
+  suspendUser,
+  unsuspendUser,
+  getStats,
+};
