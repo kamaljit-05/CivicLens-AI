@@ -3,5 +3,11 @@
   command = "npm install && npm run build"
   publish = ".next"
 
+# NEXT_PUBLIC_API_URL and NEXT_PUBLIC_GOOGLE_CLIENT_ID are read at BUILD
+# time, so they must be set under Netlify's Site settings -> Environment
+# variables (not just in frontend/.env), then trigger a redeploy. Missing
+# NEXT_PUBLIC_API_URL here is the most common cause of the deployed site
+# failing to reach the backend at all.
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

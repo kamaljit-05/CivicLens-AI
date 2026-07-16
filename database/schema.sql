@@ -18,9 +18,13 @@ CREATE TABLE users (
   photo_url         TEXT,
   role              TEXT NOT NULL DEFAULT 'citizen' CHECK (role IN ('citizen', 'admin', 'moderator')),
   profile_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  is_suspended      BOOLEAN NOT NULL DEFAULT FALSE,   -- admin-set; suspended users can't submit new reports
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- If you already have a running database from before this column existed:
+--   ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ─────────────────────────────────────────────
 -- Issue categories (predefined, extensible)
@@ -105,7 +109,7 @@ CREATE TABLE admin_actions (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id    UUID NOT NULL REFERENCES users(id),
   issue_id    UUID REFERENCES issues(id) ON DELETE CASCADE,
-  action      TEXT NOT NULL,     -- 'approve' | 'reject' | 'merge' | 'mark_related' | 'resolve'
+  action      TEXT NOT NULL,     -- 'approve' | 'reject' | 'merge' | 'mark_related' | 'resolve' | 'suspend_user' | 'unsuspend_user'
   notes       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -119,10 +123,14 @@ CREATE TABLE news_cache (
   url            TEXT NOT NULL,
   source         TEXT NOT NULL,
   image_url      TEXT,
-  locale         TEXT NOT NULL,     -- city/region keyword used for the query
-  category       TEXT NOT NULL DEFAULT 'local', -- 'local' | 'city' | 'national'
+  summary        TEXT,               -- NewsAPI's short description, shown as the 2-3 line card summary
+  locale         TEXT NOT NULL,      -- place keyword used for the query (city/state/country name, or 'world')
+  category       TEXT NOT NULL DEFAULT 'city', -- 'area' | 'city' | 'state' | 'country' | 'world'
   published_at   TIMESTAMPTZ,
   fetched_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- If you already have a running database from before this column existed:
+--   ALTER TABLE news_cache ADD COLUMN IF NOT EXISTS summary TEXT;
 
 CREATE INDEX idx_news_locale_category ON news_cache(locale, category);

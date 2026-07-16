@@ -14,17 +14,8 @@ async function getRecentIssues(): Promise<Issue[]> {
   }
 }
 
-async function getNews() {
-  try {
-    const { articles } = await api.getLocalNews('Bhubaneswar');
-    return articles;
-  } catch {
-    return [];
-  }
-}
-
 export default async function HomePage() {
-  const [issues, news] = await Promise.all([getRecentIssues(), getNews()]);
+  const issues = await getRecentIssues();
 
   return (
     <div>
@@ -101,12 +92,14 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* Local news */}
+      {/* News */}
       <section className="border-t border-ink/10 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-14">
-          <h2 className="font-display text-2xl font-bold text-ink mb-1">Local news</h2>
-          <p className="text-sm text-concrete mb-6">Sourced from vetted newspapers only — no aggregator noise.</p>
-          <NewsFeed articles={news} />
+          <h2 className="font-display text-2xl font-bold text-ink mb-1">News near you</h2>
+          <p className="text-sm text-concrete mb-6">
+            Sourced from vetted newspapers and wires only — no aggregator noise.
+          </p>
+          <NewsFeed />
         </div>
       </section>
     </div>

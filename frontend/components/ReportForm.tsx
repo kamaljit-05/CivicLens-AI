@@ -2,10 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Camera, ChevronLeft, ChevronRight, Check, LogIn } from 'lucide-react';
 import { api } from '@/lib/api';
 import AIAssistantPanel from './AIAssistantPanel';
+import type { PickedLocation } from './LocationPicker';
+
+// Leaflet needs `window`, so this only ever loads client-side.
+const LocationPicker = dynamic(() => import('./LocationPicker'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 rounded-md border border-ink/15 bg-ink/5 flex items-center justify-center text-sm font-mono text-concrete">
+      Loading map…
+    </div>
+  ),
+});
 
 const CATEGORIES = [
   { slug: 'pothole', label: 'Pothole' },
@@ -34,6 +46,8 @@ export default function ReportForm() {
   const [description, setDescription] = useState('');
   const [solutionIdea, setSolutionIdea] = useState('');
   const [addressHint, setAddressHint] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -41,6 +55,12 @@ export default function ReportForm() {
   useEffect(() => {
     setSignedIn(!!window.localStorage.getItem('civiclens_token'));
   }, []);
+
+  function handleLocationChange(location: PickedLocation) {
+    setLat(location.lat);
+    setLng(location.lng);
+    if (location.addressHint && !addressHint) setAddressHint(location.addressHint);
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -58,19 +78,22 @@ export default function ReportForm() {
   }
 
   async function handleSubmit() {
+    if (lat === null || lng === null) {
+      setSubmitError('Please set a location for this report before submitting.');
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     try {
       const imageUrl = await ensureImageUploaded();
-      // Demo coordinates — a real build would pull these from geolocation or a map picker.
       const { issue } = await api.createIssue({
         categorySlug: category,
         title,
         description,
         solutionIdea: solutionIdea || undefined,
         addressHint: addressHint || undefined,
-        lat: 20.2961,
-        lng: 85.8245,
+        lat,
+        lng,
         imageUrl,
       });
       router.push(`/issues/${issue.id}?submitted=1`);
@@ -83,7 +106,7 @@ export default function ReportForm() {
 
   const canAdvance =
     (step === 0 && category) ||
-    (step === 1 && title.trim().length >= 3 && description.trim().length >= 10) ||
+    (step === 1 && title.trim().length >= 3 && description.trim().length >= 10 && lat !== null && lng !== null) ||
     (step === 2 && imageFile) ||
     step === 3;
 
@@ -175,7 +198,13 @@ export default function ReportForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink mb-1">Location hint (optional)</label>
+              <LocationPicker onChange={handleLocationChange} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1">
+                Location hint <span className="text-concrete font-normal">(auto-filled, editable)</span>
+              </label>
               <input
                 value={addressHint}
                 onChange={(e) => setAddressHint(e.target.value)}

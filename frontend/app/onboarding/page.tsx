@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { LocateFixed } from 'lucide-react';
 import { api } from '@/lib/api';
 
 /**
@@ -17,7 +18,34 @@ export default function OnboardingPage() {
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setError('Your browser does not support geolocation — enter your city manually.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const place = await api.reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+          if (place.city) setCity(place.city);
+          if (place.state) setDistrict((prev) => prev || place.state);
+        } catch {
+          setError('Could not resolve your location to a city — enter it manually.');
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        setError('Location access was denied — enter your city manually.');
+      },
+      { timeout: 10000 }
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,9 +72,22 @@ export default function OnboardingPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Username" value={username} onChange={setUsername} placeholder="e.g. rakesh_bbsr" required />
         <Field label="Occupation" value={occupation} onChange={setOccupation} placeholder="e.g. Teacher" />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="City" value={city} onChange={setCity} placeholder="Bhubaneswar" />
-          <Field label="District" value={district} onChange={setDistrict} placeholder="Khordha" />
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-ink">Location</span>
+            <button
+              type="button"
+              onClick={useCurrentLocation}
+              disabled={locating}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-blueprint hover:text-ink disabled:opacity-50"
+            >
+              <LocateFixed size={13} /> {locating ? 'Locating…' : 'Use current location'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="City" value={city} onChange={setCity} placeholder="Bhubaneswar" />
+            <Field label="District" value={district} onChange={setDistrict} placeholder="Khordha" />
+          </div>
         </div>
 
         {error && <p className="text-sm text-rejected">{error}</p>}

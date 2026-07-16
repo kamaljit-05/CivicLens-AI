@@ -11,6 +11,7 @@ const userRoutes = require('./routes/users.routes');
 const issueRoutes = require('./routes/issues.routes');
 const adminRoutes = require('./routes/admin.routes');
 const newsRoutes = require('./routes/news.routes');
+const geoRoutes = require('./routes/geo.routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -18,7 +19,28 @@ const app = express();
 app.set('trust proxy', 1); // Render sits behind a reverse proxy — needed for correct req.protocol/req.ip
 
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:3000', credentials: true }));
+
+// FRONTEND_ORIGIN accepts a comma-separated list (e.g. your prod domain +
+// a Vercel preview URL + http://localhost:3000 for local dev). A mismatch
+// here is one of the most common causes of requests that look like they
+// "fail with no response" or a vague network error in the browser — the
+// backend is reachable, but the browser blocks the response because the
+// Origin header wasn't on the allow-list.
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow no-Origin requests (curl, server-to-server health checks).
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`Origin ${origin} is not on FRONTEND_ORIGIN allow-list`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '10mb' })); // generous limit for base64 image payloads
 app.use(
   rateLimit({
@@ -54,6 +76,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/geo', geoRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(errorHandler);
