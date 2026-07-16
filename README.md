@@ -32,7 +32,7 @@ git clone <this-repo> && cd civiclens-ai
 cp backend/.env.example backend/.env
 cp ai-service/.env.example ai-service/.env
 cp frontend/.env.example frontend/.env
-# fill in GOOGLE_CLIENT_ID, JWT_SECRET, OPENAI_API_KEY, NEWS_API_KEY in the files above
+# fill in GOOGLE_CLIENT_ID, JWT_SECRET, OPENAI_API_KEY in the files above -- no NEWS_API_KEY needed, news is powered by Google News' free RSS feed
 
 docker compose up --build
 ```
@@ -156,7 +156,10 @@ somewhere new:
   Nominatim (with proper caching + a User-Agent, per their usage policy) to
   resolve a visitor's coordinates to area/city/state, which drive the My
   Area / My City / My State / India / World tabs in `NewsFeed.tsx`. Backed
-  by NewsAPI restricted to `NEWS_TRUSTED_DOMAINS`.
+  by Google News' free RSS feed (`backend/src/services/news.service.js`),
+  filtered to `NEWS_TRUSTED_DOMAINS` via Google's `site:` search operator —
+  no API key, no quota, and safe for production (NewsAPI.org's free tier,
+  by contrast, is restricted to development use only by its own terms).
 
 ## License
 
